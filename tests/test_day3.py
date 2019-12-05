@@ -1,13 +1,5 @@
-from aoc.common import Coord
+from aoc.common import Coord, last
 from aoc.day3 import follow, solve
-
-
-def last(it):
-    """Return the last value of the given iterator"""
-    output = None
-    for item in it:
-        output = item
-    return output
 
 
 def test_follow():

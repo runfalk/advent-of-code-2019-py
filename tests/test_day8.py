@@ -1,6 +1,6 @@
 import pytest
 
-from aoc.day8 import iter_chunks, solve
+from aoc.day8 import checksum, iter_chunks, render, solve
 
 
 # fmt: off
@@ -15,6 +15,14 @@ def test_iter_chunks(size, it, expected):
         for x in iter_chunks(size, it)
     ]
     assert output == expected
+
+
+def test_checksum():
+    assert checksum((3, 2), map(int, "123456789012")) == 1
+
+
+def test_render():
+    assert render((2, 2), map(int, "0222112222120000")) == " X\nX "
 
 
 def test_solve():

@@ -1,6 +1,15 @@
 import sys
 
-from . import day2, day4, day5, day6, day7
+from . import day2, day4, day5, day6, day7, day8
+
+
+def print_answer(prefix, answer):
+    if isinstance(answer, str) and "\n" in answer:
+        for line in answer.split("\n"):
+            print(prefix, line)
+            prefix = " " * len(prefix)
+    else:
+        print(prefix, answer)
 
 
 def main():
@@ -19,10 +28,12 @@ def main():
         a, b = day6.solve(sys.argv[2])
     elif day == 7:
         a, b = day7.solve(sys.argv[2])
+    elif day == 8:
+        a, b = day8.solve(sys.argv[2])
     else:
         print("No solution for the given day ({})".format(day))
         exit(1)
 
-    print("A:", a)
+    print_answer("A:", a)
     if b is not None:
-        print("B:", b)
+        print_answer("B:", b)

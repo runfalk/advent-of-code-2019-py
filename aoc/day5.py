@@ -11,6 +11,7 @@ OP_JMP_IF_TRUE = 5
 OP_JMP_IF_FALSE = 6
 OP_LT = 7
 OP_EQ = 8
+OP_SET_REL_BASE = 9
 OP_EXIT = 99
 
 
@@ -32,36 +33,54 @@ class Op:
         return list(Digits(self._code))[2:]
 
     def is_by_val(self, i):
-        return bool(Digits(self._code)[i + 2])
+        return Digits(self._code)[i + 2]
 
 
 class IntcodeInterpreter:
     def __init__(self, program):
         self.ptr = 0
-        self.program = list(program)
+        self.rel_base = 0
+        self.program = {i: b for i, b in enumerate(program)}
 
-    def _peek(self, is_by_val=True):
-        if is_by_val:
-            return self.program[self.ptr]
+    def _peek(self, method=1):
+        if method == 0:
+            pos = self.program.get(self.ptr, 0)
+        elif method == 1:
+            pos = self.ptr
+        elif method == 2:
+            pos = self.program.get(self.ptr, 0) + self.rel_base
         else:
-            return self.program[self.program[self.ptr]]
+            raise ValueError("Method must be 0, 1 or 2, got {}".format(method))
 
-    def _read(self, is_by_val=True):
-        value = self._peek(is_by_val)
+        if pos < 0:
+            raise IndexError("Tried to read outside of memory")
+        return self.program.get(pos, 0)
+
+    def _read(self, method=1):
+        value = self._peek(method)
         self.ptr += 1
         return value
+
+    def _write(self, method, key, value):
+        if method == 0:
+            self.program[key] = value
+        elif method == 1:
+            raise ValueError("Can't write output to parameter in immediate mode")
+        elif method == 2:
+            self.program[self.rel_base + key] = value
 
     def add(self, op):
         a = self._read(op.is_by_val(0))
         b = self._read(op.is_by_val(1))
         target = self._read()
+        self._write(op.is_by_val(2), target, a + b)
         self.program[target] = a + b
 
     def mul(self, op):
         a = self._read(op.is_by_val(0))
         b = self._read(op.is_by_val(1))
         target = self._read()
-        self.program[target] = a * b
+        self._write(op.is_by_val(2), target, a * b)
 
     def jmp(self, op, cond):
         comp = self._read(op.is_by_val(0))
@@ -75,9 +94,9 @@ class IntcodeInterpreter:
         target = self._read()
 
         if a < b:
-            self.program[target] = 1
+            self._write(op.is_by_val(2), target, 1)
         else:
-            self.program[target] = 0
+            self._write(op.is_by_val(2), target, 0)
 
     def eq(self, op):
         a = self._read(op.is_by_val(0))
@@ -85,9 +104,9 @@ class IntcodeInterpreter:
         target = self._read()
 
         if a == b:
-            self.program[target] = 1
+            self._write(op.is_by_val(2), target, 1)
         else:
-            self.program[target] = 0
+            self._write(op.is_by_val(2), target, 0)
 
     def run(self, input):
         """Returns a generator that yields on every output instruction"""
@@ -95,7 +114,7 @@ class IntcodeInterpreter:
         input_iter = iter(input)
 
         # Save the untouched program in order to restore it after execution
-        saved_program = list(self.program)
+        saved_program = dict(self.program.items())
 
         try:
             while True:
@@ -106,7 +125,7 @@ class IntcodeInterpreter:
                 elif op.code == OP_MUL:
                     self.mul(op)
                 elif op.code == OP_INPUT:
-                    self.program[self._read()] = next(input_iter)
+                    self._write(op.is_by_val(0), self._read(), next(input_iter))
                 elif op.code == OP_OUTPUT:
                     yield self._read(op.is_by_val(0))
                 elif op.code == OP_JMP_IF_TRUE:
@@ -117,12 +136,15 @@ class IntcodeInterpreter:
                     self.lt(op)
                 elif op.code == OP_EQ:
                     self.eq(op)
+                elif op.code == OP_SET_REL_BASE:
+                    self.rel_base += self._read(op.is_by_val(0))
                 elif op.code == OP_EXIT:
                     break
                 else:
-                    raise ValueError("Unexpected OP-code")
+                    raise ValueError("Unexpected OP-code {!r}".format(op))
         finally:
             self.ptr = 0
+            self.rel_base = 0
             self.program = saved_program
 
 
@@ -131,6 +153,7 @@ def solve(path):
         intcode = [int(byte) for byte in f.read().rstrip().split(",")]
 
     interpreter = IntcodeInterpreter(intcode)
+
     a = last(interpreter.run([1]))
     b = last(interpreter.run([5]))
 

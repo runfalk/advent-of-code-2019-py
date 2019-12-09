@@ -1,13 +1,12 @@
-from aoc.day5 import Op, solve
+from aoc.day5 import Opcode, solve
 
 
 def test_opcode():
-    op = Op(11001)
+    op = Opcode(11001)
     assert op.code == 1
-    assert op.modes == [0, 1, 1]
-    assert not op.is_by_val(0)
-    assert op.is_by_val(1)
-    assert op.is_by_val(2)
+    assert op.modes[0] == 0
+    assert op.modes[1] == 1
+    assert op.modes[2] == 1
 
 
 def test_solve():

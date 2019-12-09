@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import defaultdict
 
 from .common import Digits, last
 
@@ -14,15 +14,19 @@ OP_EQ = 8
 OP_SET_REL_BASE = 9
 OP_EXIT = 99
 
+MODE_POS = 0
+MODE_IMMEDIATE = 1
+MODE_RELATIVE = 2
 
-class Op:
+
+class Opcode:
     __slots__ = "_code"
 
     def __init__(self, code):
         self._code = code
 
     def __repr__(self):
-        return "Op(code={}, modes={})".format(self.code, self.modes)
+        return "Opcode(code={}, modes={})".format(self.code, self.modes)
 
     @property
     def code(self):
@@ -30,131 +34,124 @@ class Op:
 
     @property
     def modes(self):
-        return list(Digits(self._code))[2:]
-
-    def is_by_val(self, i):
-        return Digits(self._code)[i + 2]
+        return Digits(self._code // 100)
 
 
-class IntcodeInterpreter:
+class Interpreter:
     def __init__(self, program):
         self.ptr = 0
         self.rel_base = 0
-        self.program = {i: b for i, b in enumerate(program)}
+        self.program = defaultdict(int, enumerate(program))
 
-    def _peek(self, method=1):
-        if method == 0:
-            pos = self.program.get(self.ptr, 0)
-        elif method == 1:
+    def read_opcode(self):
+        return Opcode(self.read_input_param(MODE_IMMEDIATE))
+
+    def read_input_param(self, mode):
+        if mode == MODE_POS:
+            pos = self.program[self.ptr]
+        elif mode == MODE_IMMEDIATE:
             pos = self.ptr
-        elif method == 2:
-            pos = self.program.get(self.ptr, 0) + self.rel_base
+        elif mode == MODE_RELATIVE:
+            pos = self.program[self.ptr] + self.rel_base
         else:
-            raise ValueError("Method must be 0, 1 or 2, got {}".format(method))
+            raise ValueError("Mode must be 0, 1 or 2, got {}".format(mode))
 
         if pos < 0:
             raise IndexError("Tried to read outside of memory")
-        return self.program.get(pos, 0)
 
-    def _read(self, method=1):
-        value = self._peek(method)
         self.ptr += 1
-        return value
+        return self.program[pos]
 
-    def _write(self, method, key, value):
-        if method == 0:
-            self.program[key] = value
-        elif method == 1:
-            raise ValueError("Can't write output to parameter in immediate mode")
-        elif method == 2:
-            self.program[self.rel_base + key] = value
+    def read_output_param(self, mode):
+        if mode == MODE_POS:
+            pos = self.program[self.ptr]
+        elif mode == MODE_IMMEDIATE:
+            raise ValueError("Output parameters can't be immediate")
+        elif mode == MODE_RELATIVE:
+            pos = self.program[self.ptr] + self.rel_base
+        else:
+            raise ValueError(
+                "Output parameter mode must be 0 or 2, got {}".format(mode)
+            )
+
+        if pos < 0:
+            raise IndexError("Tried to read outside of memory")
+
+        self.ptr += 1
+        return pos
 
     def add(self, op):
-        a = self._read(op.is_by_val(0))
-        b = self._read(op.is_by_val(1))
-        target = self._read()
-        self._write(op.is_by_val(2), target, a + b)
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
         self.program[target] = a + b
 
     def mul(self, op):
-        a = self._read(op.is_by_val(0))
-        b = self._read(op.is_by_val(1))
-        target = self._read()
-        self._write(op.is_by_val(2), target, a * b)
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
+        self.program[target] = a * b
 
-    def jmp(self, op, cond):
-        comp = self._read(op.is_by_val(0))
-        jmp_target = self._read(op.is_by_val(1))
-        if bool(comp) == cond:
+    def jmp(self, op, jmp_if):
+        comp = self.read_input_param(op.modes[0])
+        jmp_target = self.read_input_param(op.modes[1])
+        if bool(comp) == jmp_if:
             self.ptr = jmp_target
 
     def lt(self, op):
-        a = self._read(op.is_by_val(0))
-        b = self._read(op.is_by_val(1))
-        target = self._read()
-
-        if a < b:
-            self._write(op.is_by_val(2), target, 1)
-        else:
-            self._write(op.is_by_val(2), target, 0)
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
+        self.program[target] = int(a < b)
 
     def eq(self, op):
-        a = self._read(op.is_by_val(0))
-        b = self._read(op.is_by_val(1))
-        target = self._read()
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
+        self.program[target] = int(a == b)
 
-        if a == b:
-            self._write(op.is_by_val(2), target, 1)
+    def set_rel_base(self, op):
+        self.rel_base += self.read_input_param(op.modes[0])
+
+
+def intcode_eval(program, input):
+    """Returns a generator that yields on every output instruction"""
+    # Each time an input opcode is reached a value from this iterator i consumed
+    input_iter = iter(input)
+
+    vm = Interpreter(program)
+    while True:
+        op = vm.read_opcode()
+
+        if op.code == OP_ADD:
+            vm.add(op)
+        elif op.code == OP_MUL:
+            vm.mul(op)
+        elif op.code == OP_INPUT:
+            vm.program[vm.read_output_param(op.modes[0])] = next(input_iter)
+        elif op.code == OP_OUTPUT:
+            yield vm.read_input_param(op.modes[0])
+        elif op.code == OP_JMP_IF_TRUE:
+            vm.jmp(op, jmp_if=True)
+        elif op.code == OP_JMP_IF_FALSE:
+            vm.jmp(op, jmp_if=False)
+        elif op.code == OP_LT:
+            vm.lt(op)
+        elif op.code == OP_EQ:
+            vm.eq(op)
+        elif op.code == OP_SET_REL_BASE:
+            vm.set_rel_base(op)
+        elif op.code == OP_EXIT:
+            break
         else:
-            self._write(op.is_by_val(2), target, 0)
-
-    def run(self, input):
-        """Returns a generator that yields on every output instruction"""
-        # Each time an input opcode is reached a value from this iterator i consumed
-        input_iter = iter(input)
-
-        # Save the untouched program in order to restore it after execution
-        saved_program = dict(self.program.items())
-
-        try:
-            while True:
-                op = Op(self._read())
-
-                if op.code == OP_ADD:
-                    self.add(op)
-                elif op.code == OP_MUL:
-                    self.mul(op)
-                elif op.code == OP_INPUT:
-                    self._write(op.is_by_val(0), self._read(), next(input_iter))
-                elif op.code == OP_OUTPUT:
-                    yield self._read(op.is_by_val(0))
-                elif op.code == OP_JMP_IF_TRUE:
-                    self.jmp(op, cond=True)
-                elif op.code == OP_JMP_IF_FALSE:
-                    self.jmp(op, cond=False)
-                elif op.code == OP_LT:
-                    self.lt(op)
-                elif op.code == OP_EQ:
-                    self.eq(op)
-                elif op.code == OP_SET_REL_BASE:
-                    self.rel_base += self._read(op.is_by_val(0))
-                elif op.code == OP_EXIT:
-                    break
-                else:
-                    raise ValueError("Unexpected OP-code {!r}".format(op))
-        finally:
-            self.ptr = 0
-            self.rel_base = 0
-            self.program = saved_program
+            raise ValueError("Unexpected OP-code {!r}".format(op))
 
 
 def solve(path):
     with open(path) as f:
         intcode = [int(byte) for byte in f.read().rstrip().split(",")]
 
-    interpreter = IntcodeInterpreter(intcode)
-
-    a = last(interpreter.run([1]))
-    b = last(interpreter.run([5]))
+    a = last(intcode_eval(intcode, [1]))
+    b = last(intcode_eval(intcode, [5]))
 
     return (a, b)

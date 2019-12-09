@@ -1,6 +1,7 @@
 import pytest
 
-from aoc.day9 import run, solve
+from aoc.day5 import intcode_eval
+from aoc.day9 import solve
 
 
 # fmt: off
@@ -19,8 +20,8 @@ from aoc.day9 import run, solve
     ),
 ])
 # fmt: on
-def test_run(program, output):
-    assert list(run(program)) == output
+def test_intcode_eval(program, output):
+    assert list(intcode_eval(program, [])) == output
 
 
 def test_solve():

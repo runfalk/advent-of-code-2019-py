@@ -1,6 +1,6 @@
 import sys
 
-from . import day1, day2, day4, day5, day6, day7, day8, day9
+from . import day1, day2, day3, day4, day5, day6, day7, day8, day9
 
 
 def print_answer(prefix, answer):
@@ -22,6 +22,8 @@ def main():
         a, b = day1.solve(sys.argv[2])
     elif day == 2:
         a, b = day2.solve(sys.argv[2])
+    elif day == 3:
+        a, b = day3.solve(sys.argv[2])
     elif day == 4:
         a, b = day4.solve(int(sys.argv[2]), int(sys.argv[3]))
     elif day == 5:

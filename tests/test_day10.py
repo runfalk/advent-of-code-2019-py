@@ -1,20 +1,40 @@
 import pytest
-from aoc.day10 import Map, ray_angle, solve
+from aoc.common import Coord
+from aoc.day10 import Map, Ray, solve
 
 
 def test_ray_angle():
-    assert ray_angle((0, -1)) < ray_angle((1, 0))
-    assert ray_angle((1, 0)) < ray_angle((0, 1))
-    assert ray_angle((0, 1)) < ray_angle((-1, -1))
+    assert Ray(0, -1).angle < Ray(1, 0).angle
+    assert Ray(1, 0).angle < Ray(0, 1).angle
+    assert Ray(0, 1).angle < Ray(-1, -1).angle
 
-    assert ray_angle((1, -1000)) < ray_angle((-1, 1000))
+    # Test angles close to the breaking point
+    assert Ray(-1, -1000).angle > Ray(1, -1000).angle
+
+
+@pytest.mark.parametrize(
+    "input, normalized",
+    [
+        ((1, 1), (1, 1)),
+        ((2, 2), (1, 1)),
+        ((9, 9), (1, 1)),
+        ((4, 0), (1, 0)),
+        ((0, 7), (0, 1)),
+        ((2, 3), (2, 3)),
+        ((6, 9), (2, 3)),
+    ],
+)
+def test_ray_normalization(input, normalized):
+    input_ray = Ray(*input)
+    assert input_ray == Ray(*normalized)
+    assert tuple(input_ray) == normalized
 
 
 def test_get_rays():
     m = Map([(2, 2)])
-    rays = [(0, 1), (1, 0), (1, 1), (2, 1), (1, 2)]
+    rays = {(0, 1), (1, 0), (1, 1), (2, 1), (1, 2)}
     origin = (0, 2)
-    assert [(origin[0] + dx, origin[1] + dy) for dx, dy in m.get_rays((0, 2))] == rays
+    assert rays == {tuple(next(ray.iter_coords(origin))) for ray in m.get_rays(origin)}
 
 
 @pytest.mark.parametrize(
@@ -99,7 +119,7 @@ def test_get_rays():
 )
 def test_detectable_asteroids(str_map, best_asteroid, num_detectables):
     m = Map.from_str_map(str_map)
-    assert (best_asteroid, num_detectables) == max(
+    assert (Coord(*best_asteroid), num_detectables) == max(
         ((a, m.detectable_asteroids(a)) for a in m), key=lambda x: x[1],
     )
 
@@ -130,16 +150,22 @@ def test_spinning_laser():
         ]
     )
 
-    order = list(m.iter_spinning_laser_targets((11, 13)))
-
-    assert order[0] == (11, 12)
-    assert order[1] == (12, 1)
-    assert order[2] == (12, 2)
-    assert order[9] == (12, 8)
-    assert order[19] == (16, 0)
-    assert order[49] == (16, 9)
-    assert order[99] == (10, 16)
-    assert order[199] == (8, 2)
+    destruction_order = list(m.iter_spinning_laser_targets((11, 13)))
+    expected_order = {
+        1: (11, 12),
+        2: (12, 1),
+        3: (12, 2),
+        10: (12, 8),
+        20: (16, 0),
+        50: (16, 9),
+        100: (10, 16),
+        199: (9, 6),
+        200: (8, 2),
+        201: (10, 9),
+        299: (11, 1),
+    }
+    for i, coord in expected_order.items():
+        assert destruction_order[i - 1] == Coord(*coord)
 
 
 def test_solve():

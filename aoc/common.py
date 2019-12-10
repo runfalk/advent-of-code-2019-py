@@ -8,6 +8,10 @@ class Coord:
         self.x = x
         self.y = y
 
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
     def __repr__(self):
         return "Coord(x={}, y={})".format(self.x, self.y)
 

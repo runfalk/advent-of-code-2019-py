@@ -1,4 +1,5 @@
-from aoc.common import Coord, last
+from aoc.plane import Coord
+from aoc.common import last
 from aoc.day3 import follow, solve
 
 

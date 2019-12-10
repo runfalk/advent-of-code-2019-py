@@ -1,4 +1,4 @@
-from .common import Coord
+from .plane import Coord
 
 
 def follow(path):

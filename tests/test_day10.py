@@ -1,33 +1,15 @@
 import pytest
-from aoc.common import Coord
-from aoc.day10 import Map, Ray, solve
+from aoc.plane import Coord, Vector
+from aoc.day10 import Map, solve, vector_angle
 
 
-def test_ray_angle():
-    assert Ray(0, -1).angle < Ray(1, 0).angle
-    assert Ray(1, 0).angle < Ray(0, 1).angle
-    assert Ray(0, 1).angle < Ray(-1, -1).angle
+def test_vector_angle():
+    assert vector_angle(Vector(0, -1)) < vector_angle(Vector(1, 0))
+    assert vector_angle(Vector(1, 0)) < vector_angle(Vector(0, 1))
+    assert vector_angle(Vector(0, 1)) < vector_angle(Vector(-1, -1))
 
     # Test angles close to the breaking point
-    assert Ray(-1, -1000).angle > Ray(1, -1000).angle
-
-
-@pytest.mark.parametrize(
-    "input, normalized",
-    [
-        ((1, 1), (1, 1)),
-        ((2, 2), (1, 1)),
-        ((9, 9), (1, 1)),
-        ((4, 0), (1, 0)),
-        ((0, 7), (0, 1)),
-        ((2, 3), (2, 3)),
-        ((6, 9), (2, 3)),
-    ],
-)
-def test_ray_normalization(input, normalized):
-    input_ray = Ray(*input)
-    assert input_ray == Ray(*normalized)
-    assert tuple(input_ray) == normalized
+    assert vector_angle(Vector(-1, -1000)) > vector_angle(Vector(1, -1000))
 
 
 def test_get_rays():
@@ -118,14 +100,14 @@ def test_get_rays():
     ],
 )
 def test_detectable_asteroids(str_map, best_asteroid, num_detectables):
-    m = Map.from_str_map(str_map)
+    m = Map.from_lines(str_map)
     assert (Coord(*best_asteroid), num_detectables) == max(
         ((a, m.detectable_asteroids(a)) for a in m), key=lambda x: x[1],
     )
 
 
 def test_spinning_laser():
-    m = Map.from_str_map(
+    m = Map.from_lines(
         [
             ".#..##.###...#######",
             "##.############..##.",

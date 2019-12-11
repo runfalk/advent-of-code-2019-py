@@ -1,6 +1,29 @@
-OP_ADD = 1
-OP_MUL = 2
-OP_EXIT = 99
+from .intcode import InterpreterBase, Op
+
+
+class Interpreter(InterpreterBase):
+    def add(self, op):
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
+        self.program[target] = a + b
+
+    def mul(self, op):
+        a = self.read_input_param(op.modes[0])
+        b = self.read_input_param(op.modes[1])
+        target = self.read_output_param(op.modes[2])
+        self.program[target] = a * b
+
+    def step(self):
+        # Let parent handle op-code if it knows how to handle it
+        op = super().step()
+
+        if op.code == Op.ADD:
+            self.add(op)
+        elif op.code == Op.MUL:
+            self.mul(op)
+        else:
+            return op
 
 
 def run_program(program, noun=None, verb=None):
@@ -11,20 +34,10 @@ def run_program(program, noun=None, verb=None):
     if verb is not None:
         program[2] = verb
 
-    i = 0
-    while program[i] != 99:
-        op = program[i]
-        if op == OP_ADD:
-            program[program[i + 3]] = program[program[i + 1]] + program[program[i + 2]]
-        elif op == OP_MUL:
-            program[program[i + 3]] = program[program[i + 1]] * program[program[i + 2]]
-        else:
-            raise ValueError("Unexpected OP-code")
-
-        # All instructions are four wide
-        i += 4
-
-    return program
+    computer = Interpreter(program)
+    for op in computer.step_until_halt():
+        raise ValueError(f"Unknown opcode {op!r}")
+    return computer.program
 
 
 def find_noun_and_verb(program):

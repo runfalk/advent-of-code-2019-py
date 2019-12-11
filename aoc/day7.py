@@ -1,8 +1,7 @@
-from collections import deque, namedtuple
+from collections import deque
 from itertools import permutations
 
-from .common import Digits, last
-from .day5 import intcode_eval
+from .day5 import Interpreter
 
 
 def iter_deque(queue):
@@ -16,8 +15,7 @@ def iter_deque(queue):
 def find_thruster_signal(intcode, phase_settings):
     prev_output = 0
     for phase in phase_settings:
-        (prev_output,) = intcode_eval(intcode, [phase, prev_output])
-
+        (prev_output,) = Interpreter.run_program(intcode, [phase, prev_output])
     return prev_output
 
 
@@ -28,11 +26,11 @@ def find_thruster_signal_with_feedback(intcode, phase_settings):
     d_input = deque([phase_settings[3]])
     e_input = deque([phase_settings[4]])
 
-    a = intcode_eval(intcode, iter_deque(a_input))
-    b = intcode_eval(intcode, iter_deque(b_input))
-    c = intcode_eval(intcode, iter_deque(c_input))
-    d = intcode_eval(intcode, iter_deque(d_input))
-    e = intcode_eval(intcode, iter_deque(e_input))
+    a = Interpreter.run_program(intcode, iter_deque(a_input))
+    b = Interpreter.run_program(intcode, iter_deque(b_input))
+    c = Interpreter.run_program(intcode, iter_deque(c_input))
+    d = Interpreter.run_program(intcode, iter_deque(d_input))
+    e = Interpreter.run_program(intcode, iter_deque(e_input))
 
     e_output = 0
     while True:

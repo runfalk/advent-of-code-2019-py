@@ -9,8 +9,8 @@ def test_follow():
     assert len(list(follow("U7,R6,D4,L4".split(",")))) == 21
 
     assert last(follow(["R10"])) == Coord(10, 0)
-    assert last(follow("R8,U5,L5,D3".split(","))) == Coord(3, 2)
-    assert last(follow("U7,R6,D4,L4".split(","))) == Coord(2, 3)
+    assert last(follow("R8,U5,L5,D3".split(","))) == Coord(3, -2)
+    assert last(follow("U7,R6,D4,L4".split(","))) == Coord(2, -3)
 
 
 def test_solve():

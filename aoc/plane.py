@@ -28,13 +28,13 @@ class Coord:
         return abs(self.x) + abs(self.y)
 
     def up(self, steps):
-        return replace(self, y=self.y + steps)
+        return replace(self, y=self.y - steps)
 
     def right(self, steps):
         return replace(self, x=self.x + steps)
 
     def down(self, steps):
-        return replace(self, y=self.y - steps)
+        return replace(self, y=self.y + steps)
 
     def left(self, steps):
         return replace(self, x=self.x - steps)

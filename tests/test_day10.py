@@ -1,4 +1,5 @@
 import pytest
+
 from aoc.plane import Coord, Vector
 from aoc.day10 import Map, solve, vector_angle
 
@@ -13,7 +14,7 @@ def test_vector_angle():
 
 
 def test_get_rays():
-    m = Map([(2, 2)])
+    m = Map((x, y) for y in range(3) for x in range(3))
     rays = {(0, 1), (1, 0), (1, 1), (2, 1), (1, 2)}
     origin = (0, 2)
     assert rays == {tuple(next(ray.iter_coords(origin))) for ray in m.get_rays(origin)}

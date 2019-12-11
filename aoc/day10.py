@@ -47,12 +47,16 @@ class Map:
         )
 
     def get_rays(self, origin):
-        """Return a set of rays that can reach all asteroids in this map"""
+        """Return a set of unit vectors that can reach all asteroids.
+
+        Incidentally the number of rays is the same as the number of visible
+        asteroids.
+        """
+        origin = Coord(*origin)
         return {
-            Vector.from_coords(origin, (x, y)).normalize()
-            for y in range(self.height)
-            for x in range(self.width)
-            if (x, y) != tuple(origin)
+            Vector.from_coords(origin, asteroid).normalize()
+            for asteroid in self.asteroids
+            if asteroid != origin
         }
 
     def iter_spinning_laser_targets(self, origin):
@@ -82,26 +86,9 @@ class Map:
                     return
                 break
 
-    def iter_blocked_coords(self, origin):
-        """Iterate all coordinates that are blocked from this coordinate.
-
-        Note that the asteroids we have a direct line of sight to are not
-        included.
-        """
-        if origin not in self.asteroids:
-            raise KeyError(f"No such asteroid {origin!r}")
-
-        for other in self.asteroids:
-            if other == origin:
-                continue
-
-            ray = Vector.from_coords(origin, target=other).normalize()
-            for blocked_pos in takewhile(self.in_bounds, ray.iter_coords(origin=other)):
-                yield blocked_pos
-
     def detectable_asteroids(self, asteroid):
-        blocked = set(self.iter_blocked_coords(asteroid))
-        return len(self.asteroids - blocked - {asteroid})
+        """Number of asteroids that can be seen from this asteroid"""
+        return len(self.get_rays(asteroid))
 
 
 def solve(path):

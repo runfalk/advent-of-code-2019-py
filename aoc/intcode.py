@@ -2,7 +2,7 @@ from enum import Enum, IntEnum
 from itertools import count
 
 
-class Mode(Enum):
+class Mode:
     POS = 0
     IMMEDIATE = 1
     RELATIVE = 2
@@ -25,32 +25,26 @@ class ModeDict(dict):
     __slots__ = ()
 
     def __missing__(self, key):
-        return Mode.POS
+        return 0
 
 
 class Opcode:
-    __slots__ = "_code"
+    __slots__ = ("code", "modes")
 
     def __init__(self, code):
-        self._code = code
+        self.code = Op(code % 100)
 
-    def __repr__(self):
-        return f"Opcode(code={self.code!r}, modes={dict(self.modes.items())})"
-
-    @property
-    def code(self):
-        return Op(self._code % 100)
-
-    @property
-    def modes(self):
         modes = ModeDict()
-        int_modes = self._code // 100
+        int_modes = code // 100
         for i in count():
             if int_modes == 0:
                 break
-            modes[i] = Mode(int_modes % 10)
+            modes[i] = int_modes % 10
             int_modes //= 10
-        return modes
+        self.modes = modes
+
+    def __repr__(self):
+        return f"Opcode(code={self.code!r}, modes={self.modes.items()})"
 
 
 class InterpreterBase:

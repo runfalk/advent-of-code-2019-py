@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 from aoc.day7 import find_thruster_signal, find_thruster_signal_with_feedback, solve
@@ -55,7 +56,7 @@ def test_find_thruster_signal(program, phase_settings, thruster_settings):
 ])
 # fmt: on
 def test_find_thruster_signal_with_feedback(program, phase_settings, thruster_settings):
-    output = find_thruster_signal_with_feedback(program, phase_settings)
+    output = asyncio.run(find_thruster_signal_with_feedback(program, phase_settings))
     assert output == thruster_settings
 
 

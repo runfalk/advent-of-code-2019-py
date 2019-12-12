@@ -1,15 +1,9 @@
+import asyncio
+
 from collections import deque
-from itertools import permutations
+from itertools import cycle, islice, permutations
 
-from .day5 import Interpreter
-
-
-def iter_deque(queue):
-    while True:
-        value = queue.popleft()
-        if value is None:
-            break
-        yield value
+from .day5 import Interpreter, Op
 
 
 def find_thruster_signal(intcode, phase_settings):
@@ -19,33 +13,44 @@ def find_thruster_signal(intcode, phase_settings):
     return prev_output
 
 
-def find_thruster_signal_with_feedback(intcode, phase_settings):
-    a_input = deque([phase_settings[0], 0])
-    b_input = deque([phase_settings[1]])
-    c_input = deque([phase_settings[2]])
-    d_input = deque([phase_settings[3]])
-    e_input = deque([phase_settings[4]])
+def async_queue_from_iter(it):
+    queue = asyncio.Queue()
+    for item in it:
+        queue.put_nowait(item)
+    return queue
 
-    a = Interpreter.run_program(intcode, iter_deque(a_input))
-    b = Interpreter.run_program(intcode, iter_deque(b_input))
-    c = Interpreter.run_program(intcode, iter_deque(c_input))
-    d = Interpreter.run_program(intcode, iter_deque(d_input))
-    e = Interpreter.run_program(intcode, iter_deque(e_input))
 
-    e_output = 0
-    while True:
-        b_input.append(next(a, None))
-        c_input.append(next(b, None))
-        d_input.append(next(c, None))
-        e_input.append(next(d, None))
+async def async_run_program(program, input_queue, output_queue):
+    computer = Interpreter(program)
+    for op in computer.step_until_halt():
+        if op.code == Op.INPUT:
+            target = computer.read_output_param(op.modes[0])
+            computer.program[target] = await input_queue.get()
+        elif op.code == Op.OUTPUT:
+            await output_queue.put(computer.read_input_param(op.modes[0]))
+        else:
+            raise ValueError(f"Unexpected OP-code {op!r}")
 
-        try:
-            e_output = next(e)
-            a_input.append(e_output)
-        except:
-            break
 
-    return e_output
+async def find_thruster_signal_with_feedback(intcode, phase_settings):
+    input_queues = [
+        async_queue_from_iter([phase_setting]) for phase_setting in phase_settings
+    ]
+
+    # Add initial zero to first amplifier's queue
+    await input_queues[0].put(0)
+
+    # Start amplifier programs and hook them up to the correct IO
+    output_queue_iter = islice(cycle(input_queues), 1, None)
+    amplifiers = [
+        async_run_program(intcode, input_queue, output_queue)
+        for input_queue, output_queue in zip(input_queues, output_queue_iter)
+    ]
+
+    await asyncio.gather(*amplifiers)
+
+    # There should be one item in the first amplifier's queue waiting for us
+    return await input_queues[0].get()
 
 
 def solve(path):
@@ -54,12 +59,12 @@ def solve(path):
 
     a = max(
         find_thruster_signal(intcode, phase_settings)
-        for phase_settings in permutations(range(5), r=5)
+        for phase_settings in permutations(range(5))
     )
 
     b = max(
-        find_thruster_signal_with_feedback(intcode, phase_settings)
-        for phase_settings in permutations(range(5, 10), r=5)
+        asyncio.run(find_thruster_signal_with_feedback(intcode, phase_settings))
+        for phase_settings in permutations(range(5, 10))
     )
 
     return (a, b)

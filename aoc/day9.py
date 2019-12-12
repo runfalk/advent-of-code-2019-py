@@ -6,22 +6,22 @@ from .day5 import Interpreter as PrevInterpreter
 
 
 class Interpreter(PrevInterpreter):
-    def __init__(self, program):
-        self.ptr = 0
-        self.rel_base = 0
+    def __init__(self, program, op_overrides=None):
+        ops = {
+            Op.SET_REL_BASE: self.set_rel_base,
+        }
+
+        if op_overrides is not None:
+            ops.update(op_overrides.items())
+
+        # We don't send the real program to the parent since we will override
+        # it with a defaultdict anyway. This is required since the memory is
+        # unbounded
+        super().__init__([], ops)
         self.program = defaultdict(int, enumerate(program))
 
     def set_rel_base(self, op):
         self.rel_base += self.read_input_param(op.modes[0])
-
-    def step(self):
-        op = super().step()
-        if op is None:
-            return
-        elif op.code is Op.SET_REL_BASE:
-            self.set_rel_base(op)
-        else:
-            return op
 
 
 def solve(path):

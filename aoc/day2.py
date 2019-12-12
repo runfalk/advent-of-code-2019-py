@@ -2,6 +2,17 @@ from .intcode import InterpreterBase, Op
 
 
 class Interpreter(InterpreterBase):
+    def __init__(self, program, op_overrides=None):
+        ops = {
+            Op.ADD: self.add,
+            Op.MUL: self.mul,
+        }
+
+        if op_overrides is not None:
+            ops.update(op_overrides.items())
+
+        super().__init__(program, ops)
+
     def add(self, op):
         a = self.read_input_param(op.modes[0])
         b = self.read_input_param(op.modes[1])
@@ -13,17 +24,6 @@ class Interpreter(InterpreterBase):
         b = self.read_input_param(op.modes[1])
         target = self.read_output_param(op.modes[2])
         self.program[target] = a * b
-
-    def step(self):
-        # Let parent handle op-code if it knows how to handle it
-        op = super().step()
-
-        if op.code == Op.ADD:
-            self.add(op)
-        elif op.code == Op.MUL:
-            self.mul(op)
-        else:
-            return op
 
 
 def run_program(program, noun=None, verb=None):

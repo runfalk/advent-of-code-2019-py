@@ -6,9 +6,23 @@ from .intcode import Op
 
 
 class Interpreter(PrevInterpreter):
-    def jmp(self, op, jmp_if):
+    def __init__(self, program, op_overrides=None):
+        ops = {
+            Op.JMP_IF_TRUE: self.jmp,
+            Op.JMP_IF_FALSE: self.jmp,
+            Op.LT: self.lt,
+            Op.EQ: self.eq,
+        }
+
+        if op_overrides is not None:
+            ops.update(op_overrides.items())
+
+        super().__init__(program, ops)
+
+    def jmp(self, op):
         comp = self.read_input_param(op.modes[0])
         jmp_target = self.read_input_param(op.modes[1])
+        jmp_if = op.code is Op.JMP_IF_TRUE
         if bool(comp) == jmp_if:
             self.ptr = jmp_target
 
@@ -23,22 +37,6 @@ class Interpreter(PrevInterpreter):
         b = self.read_input_param(op.modes[1])
         target = self.read_output_param(op.modes[2])
         self.program[target] = int(a == b)
-
-    def step(self):
-        op = super().step()
-
-        if op is None:
-            return
-        elif op.code is Op.JMP_IF_TRUE:
-            self.jmp(op, jmp_if=True)
-        elif op.code is Op.JMP_IF_FALSE:
-            self.jmp(op, jmp_if=False)
-        elif op.code is Op.LT:
-            self.lt(op)
-        elif op.code is Op.EQ:
-            self.eq(op)
-        else:
-            return op
 
 
 def solve(path):

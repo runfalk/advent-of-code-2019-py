@@ -1,7 +1,5 @@
-from collections import defaultdict
 from enum import Enum, IntEnum
-
-from .common import Digits
+from itertools import count
 
 
 class Mode(Enum):
@@ -23,6 +21,13 @@ class Op(IntEnum):
     EXIT = 99
 
 
+class ModeDict(dict):
+    __slots__ = ()
+
+    def __missing__(self, key):
+        return Mode.POS
+
+
 class Opcode:
     __slots__ = "_code"
 
@@ -38,17 +43,24 @@ class Opcode:
 
     @property
     def modes(self):
-        modes = defaultdict(lambda: Mode.POS)
-        for i, mode in enumerate(Digits(self._code // 100)):
-            modes[i] = Mode(mode)
+        modes = ModeDict()
+        int_modes = self._code // 100
+        for i in count():
+            if int_modes == 0:
+                break
+            modes[i] = Mode(int_modes % 10)
+            int_modes //= 10
         return modes
 
 
 class InterpreterBase:
-    def __init__(self, program):
+    def __init__(self, program, op_overrides=None):
         self.ptr = 0
         self.rel_base = 0
         self.program = list(program)
+        self.ops = {}
+        if op_overrides is not None:
+            self.ops.update(op_overrides.items())
 
     @classmethod
     def run_program(cls, program, input=None):
@@ -101,15 +113,14 @@ class InterpreterBase:
         self.ptr += 1
         return pos
 
-    def step(self):
-        return self.read_opcode()
-
     def step_until_halt(self):
         while True:
-            op = self.step()
-            if op is None:
-                continue
+            op = self.read_opcode()
+            func = self.ops.get(op.code)
+
             if op.code is Op.EXIT:
                 return
+            elif func is not None:
+                func(op)
             else:
                 yield op

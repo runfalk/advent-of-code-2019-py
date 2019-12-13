@@ -27,16 +27,16 @@ class Coord:
     def distance_from_origin(self):
         return abs(self.x) + abs(self.y)
 
-    def up(self, steps):
+    def up(self, steps=1):
         return replace(self, y=self.y - steps)
 
-    def right(self, steps):
+    def right(self, steps=1):
         return replace(self, x=self.x + steps)
 
-    def down(self, steps):
+    def down(self, steps=1):
         return replace(self, y=self.y + steps)
 
-    def left(self, steps):
+    def left(self, steps=1):
         return replace(self, x=self.x - steps)
 
 

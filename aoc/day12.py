@@ -1,29 +1,16 @@
-import re
 import math
+import re
 
-from itertools import combinations, islice
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
+from functools import reduce
+from itertools import combinations, count
 
 from .common import lines_from_file
 
 
-def lcm(a, b):
-    """Return lowest common multiple.
-
-    This means the smallest possible number that is evenly divisible by both A
-    and B. It is very useful when determining cycle lengths for combinations of
-    sequences of different cycle lengths.
-
-    Imagine two sequences of different lengths:
-
-        from itertools import cycle
-        a = range(2)
-        b = range(3)
-        len_cycle = sum(1 for _ in a for _ in b)  # 2 * 3 = 6
-        assert lcm(len(a), len(b)) == len_cycle
-
-    """
-    return a * b // math.gcd(a, b)
+def cycle_len(*cycle_lens):
+    """Calculate combined cycle length using lowest common multiple"""
+    return reduce(lambda a, b: a * b // math.gcd(a, b), cycle_lens)
 
 
 def cmp(a, b):
@@ -36,120 +23,102 @@ def cmp(a, b):
         return 0
 
 
-@dataclass(frozen=True)
-class Coord:
-    __slots__ = ("x", "y", "z")
-
-    x: int
-    y: int
-    z: int
-
-    @classmethod
-    def origin(cls):
-        return cls(0, 0, 0)
-
-    @classmethod
-    def from_str(cls, s):
-        m = re.match(r"<x=(-?\d+), y=(-?\d+), z=(-?\d+)>", s)
-        if m is None:
-            raise ValueError("This is no moon")
-        return cls(int(m.group(1)), int(m.group(2)), int(m.group(3)),)
-
-    def __iter__(self):
-        yield self.x
-        yield self.y
-        yield self.z
-
-    def __add__(self, other):
-        if not isinstance(other, Coord):
-            return NotImplemented
-        return Coord(self.x + other.x, self.y + other.y, self.z + other.z)
-
-    def __sub__(self, other):
-        if not isinstance(other, Coord):
-            return NotImplemented
-        return Coord(self.x - other.x, self.y - other.y, self.z - other.z)
-
-    def distance_to(self, other):
-        return sum(map(abs, self - other))
+def parse_coord(s):
+    m = re.match(r"<x=\s*(-?\d+), y=\s*(-?\d+), z=\s*(-?\d+)>", s)
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
 
 
 @dataclass(frozen=True)
 class Moon:
-    __slots__ = ("pos", "vel")
+    x: int
+    y: int
+    z: int
+    dx: int = 0
+    dy: int = 0
+    dz: int = 0
 
-    pos: Coord
-    vel: Coord
-
-    def __init__(self, pos, vel=None):
-        object.__setattr__(self, "pos", pos)
-        if vel is None:
-            vel = Coord.origin()
-        object.__setattr__(self, "vel", vel)
-
-    @property
-    def potential_energy(self):
-        return self.pos.distance_to(Coord.origin())
-
-    @property
-    def kinetic_energy(self):
-        return self.vel.distance_to(Coord.origin())
+    @classmethod
+    def from_str(cls, s):
+        return cls(*parse_coord(s))
 
     @property
     def energy(self):
-        return self.potential_energy * self.kinetic_energy
+        potential_energy = abs(self.x) + abs(self.y) + abs(self.z)
+        kinetic_energy = abs(self.dx) + abs(self.dy) + abs(self.dz)
+        return potential_energy * kinetic_energy
 
-    def step(self):
-        return replace(self, pos=self.pos + self.vel)
 
-    @classmethod
-    def apply_gravity(cls, a, b):
-        a_delta_vel = Coord(*(-cmp(apos, bpos) for apos, bpos in zip(a.pos, b.pos)))
+class AxisTimeline:
+    """Simulates moons along a single axis"""
 
-        return (
-            replace(a, vel=a.vel + a_delta_vel),
-            replace(b, vel=b.vel - a_delta_vel),
+    def __init__(self, moons):
+        self._moons = list(moons)
+        self._cycle_detected = False
+        self._iterations = [tuple(self._moons)]
+
+    def _simulate(self, max_iteration=None):
+        for i in count(len(self._iterations)):
+            if max_iteration is not None and i > max_iteration:
+                break
+
+            # Apply gravity to change moon state
+            for ia, ib in combinations(range(len(self._moons)), r=2):
+                pa, va = self._moons[ia]
+                pb, vb = self._moons[ib]
+                self._moons[ia] = (pa, va + cmp(pb, pa))
+                self._moons[ib] = (pb, vb - cmp(pb, pa))
+
+            # Update moon positions
+            for i, (p, v) in enumerate(self._moons):
+                self._moons[i] = (p + v, v)
+
+            moons = tuple(self._moons)
+            if moons == self._iterations[0]:
+                self._cycle_detected = True
+                break
+
+            self._iterations.append(moons)
+
+    def __getitem__(self, iteration):
+        if self._cycle_detected:
+            iteration = iteration % len(self._iterations)
+
+        if iteration < len(self._iterations):
+            return self._iterations[iteration]
+
+        self._simulate(max_iteration=iteration)
+        return self._iterations[iteration]
+
+    def cycle_len(self):
+        if not self._cycle_detected:
+            self._simulate()
+        return len(self._iterations)
+
+
+class SpaceTimeline:
+    """Provides access to 3D state for any given time using AxisTimelines"""
+
+    def __init__(self, moons):
+        moons = list(moons)
+        self.x_axis = AxisTimeline((moon.x, moon.dx) for moon in moons)
+        self.y_axis = AxisTimeline((moon.y, moon.dy) for moon in moons)
+        self.z_axis = AxisTimeline((moon.z, moon.dz) for moon in moons)
+
+    def __getitem__(self, i):
+        tuple_moons = list(zip(self.x_axis[i], self.y_axis[i], self.z_axis[i]))
+        return tuple(
+            Moon(
+                *(tm[axis][value_type] for value_type in range(2) for axis in range(3))
+            )
+            for tm in tuple_moons
+        )
+
+    def cycle_len(self):
+        return cycle_len(
+            self.x_axis.cycle_len(), self.y_axis.cycle_len(), self.z_axis.cycle_len(),
         )
 
 
-def iter_system(system):
-    system = list(system)
-    while True:
-        for ia, ib in combinations(range(len(system)), r=2):
-            system[ia], system[ib] = Moon.apply_gravity(system[ia], system[ib])
-
-        for i in range(len(system)):
-            system[i] = system[i].step()
-
-        yield tuple(system)
-
-
-def run_until_repetition(system):
-    # Track repetitions in each dimensions, since they are completely
-    # independent
-    prev_x = set()
-    prev_y = set()
-    prev_z = set()
-
-    for new_system in iter_system(system):
-        x_system = tuple((m.pos.x, m.vel.x) for m in new_system)
-        y_system = tuple((m.pos.y, m.vel.y) for m in new_system)
-        z_system = tuple((m.pos.z, m.vel.z) for m in new_system)
-
-        # Once we have detected repetions for each dimension we use LCM to
-        # determine the full cycle length
-        if x_system in prev_x and y_system in prev_y and z_system in prev_z:
-            return lcm(lcm(len(prev_x), len(prev_y)), len(prev_z))
-
-        prev_x.add(x_system)
-        prev_y.add(y_system)
-        prev_z.add(z_system)
-
-
 def solve(path):
-    system = [Moon(Coord.from_str(line)) for line in lines_from_file(path)]
-
-    a = sum(moon.energy for moon in next(islice(iter_system(system), 999, 1000)))
-    b = run_until_repetition(system)
-
-    return (a, b)
+    timeline = SpaceTimeline(Moon.from_str(line) for line in lines_from_file(path))
+    return (sum(m.energy for m in timeline[1000]), timeline.cycle_len())

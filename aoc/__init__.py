@@ -56,7 +56,12 @@ def main():
     elif day == 11:
         a, b = day11.solve(sys.argv[2])
     elif day == 12:
-        a, b = day12.solve(sys.argv[2])
+        try:
+            a, b = day12.solve(sys.argv[2])
+        except:
+            import pdb
+
+            pdb.post_mortem()
     elif day == 13:
         a, b = day13.solve(sys.argv[2])
     elif day == 14:

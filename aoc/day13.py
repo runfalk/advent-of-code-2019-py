@@ -1,4 +1,5 @@
 from collections import Counter
+from itertools import count
 
 from .common import dict_coords_as_str
 from .day12 import cmp
@@ -8,103 +9,64 @@ from .intcode import load_program_from_file
 from .plane import Coord
 
 
+EMPTY = 0
+WALL = 1
+BLOCK = 2
+PADDLE = 3
+BALL = 4
+
+debug_colors = {
+    EMPTY: " ",
+    WALL: "#",
+    BLOCK: "X",
+    PADDLE: "_",
+    BALL: "o",
+}
+
+
 def find_num_blocks(intcode):
     computer = Interpreter.run_program(intcode)
     tiles = Counter(tile_id for _, _, tile_id in iter_chunks(3, computer))
+    return tiles[BLOCK]
 
-    return tiles[Bot.BLOCK]
 
+def play_game(intcode, debug=False):
+    framebuffer = {}
+    score = 0
+    ball = Coord(0, 0)
+    paddle = Coord(0, 0)
 
-class Bot:
-    EMPTY = 0
-    WALL = 1
-    BLOCK = 2
-    PADDLE = 3
-    BALL = 4
+    def joystick():
+        for i in count():
+            move = cmp(0, paddle.x - ball.x)
+            if debug:
+                print(dict_coords_as_str(framebuffer, debug_colors))
+                print("Iteration:", i)
+                print("Paddle:", paddle)
+                print("Ball:", ball)
+                print("Move:", move)
+                print("Score:", score)
+            yield move
 
-    def __init__(self, intcode, debug=False):
-        intcode = list(intcode)
+    # Put the game in free to play mode
+    intcode = list(intcode)
+    intcode[0] = 2
 
-        # Put the game in free to play mode
-        intcode[0] = 2
+    computer = Interpreter.run_program(intcode, joystick())
+    for x, y, tile_id in iter_chunks(3, computer):
+        if x == -1 and y == 0:
+            score = tile_id
+            continue
 
-        # Frame buffer
-        self.fb = {}
+        framebuffer[(x, y)] = tile_id
+        if tile_id == PADDLE:
+            paddle = Coord(x, y)
+        elif tile_id == BALL:
+            ball = Coord(x, y)
 
-        # Metadata to decide joystick input
-        self.computer = Interpreter.run_program(intcode, self.input())
-        self.paddle = Coord(0, 0)
-        self.ball = Coord(0, 0)
-        self.ball_delta = None
-
-        self.score = 0
-        self.debug = debug
-
-    def input(self):
-        while True:
-            # We need to reset the delta when the ball hits the paddle since it
-            # bounces back in the same direction it came from
-            is_paddle_hit = self.paddle.up() == self.ball
-            if is_paddle_hit:
-                self.ball_delta = Coord(0, 0)
-
-            paddle_dx = self.paddle.x - (self.ball.x + self.ball_delta.x)
-
-            if self.debug:
-                print(
-                    dict_coords_as_str(
-                        self.fb,
-                        {
-                            self.EMPTY: " ",
-                            self.WALL: "#",
-                            self.BLOCK: "X",
-                            self.PADDLE: "_",
-                            self.BALL: "o",
-                        },
-                    )
-                )
-                print("Paddle:", self.paddle)
-                print("Ball:", self.ball, self.ball_delta)
-                print("Move:", cmp(0, paddle_dx))
-                print("Score:", self.score)
-
-            yield cmp(0, paddle_dx)
-
-    def run_segment(self):
-        """Run until score is updated by breaking a block"""
-        for x, y, tile_id in iter_chunks(3, self.computer):
-            if x == -1 and y == 0:
-                self.score = tile_id
-                break
-
-            # Update frame buffer
-            self.fb[(x, y)] = tile_id
-
-            if tile_id == self.PADDLE:
-                self.paddle = Coord(x, y)
-            elif tile_id == self.BALL:
-                prev_ball = self.ball
-                self.ball = Coord(x, y)
-
-                if self.ball_delta is None:
-                    # We don't know the initial ball direction
-                    self.ball_delta = Coord(0, 0)
-                else:
-                    self.ball_delta = self.ball - prev_ball
-        else:
-            # If we didn't break the computer was halted
-            return False
-
-        return True
-
-    def run(self):
-        """Run until halt and return final score"""
-        while True:
-            if not self.run_segment():
-                return self.score
+    return score
 
 
 def solve(path):
     intcode = load_program_from_file(path)
-    bot = Bot(intcode)
-    return (find_num_blocks(intcode), bot.run())
+    return (find_num_blocks(intcode), play_game(intcode))

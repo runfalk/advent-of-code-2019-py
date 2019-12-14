@@ -32,7 +32,7 @@ def is_pw(pw):
 
 
 def solve(path):
-    line, = lines_from_file(path)
+    (line,) = lines_from_file(path)
     start, end = map(int, line.split("-"))
 
     a = 0

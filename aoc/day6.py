@@ -1,3 +1,6 @@
+from .common import lines_from_file
+
+
 def traverse_parents(orbits, planet):
     while planet in orbits:
         planet = orbits[planet]
@@ -22,8 +25,7 @@ def num_transfers(orbits, a, b):
 
 
 def solve(path):
-    with open(path) as f:
-        orbit_pairs = (orbit.rstrip().split(")") for orbit in f)
-        orbits = {c: p for p, c in orbit_pairs}
+    orbit_pairs = (orbit.rstrip().split(")") for orbit in lines_from_file(path))
+    orbits = {c: p for p, c in orbit_pairs}
 
     return (num_orbits(orbits), num_transfers(orbits, "YOU", "SAN"))

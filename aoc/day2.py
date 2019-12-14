@@ -1,4 +1,4 @@
-from .intcode import InterpreterBase, Op
+from .intcode import InterpreterBase, load_program_from_file, Op
 
 
 class Interpreter(InterpreterBase):
@@ -50,9 +50,7 @@ def find_noun_and_verb(program):
 
 
 def solve(path):
-    with open(path) as f:
-        intcode = [int(byte) for byte in f.read().rstrip().split(",")]
-
+    intcode = load_program_from_file(path)
     a = run_program(intcode, noun=12, verb=2)
     b = find_noun_and_verb(intcode)
 

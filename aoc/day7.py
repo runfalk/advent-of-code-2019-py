@@ -3,7 +3,8 @@ import asyncio
 from collections import deque
 from itertools import cycle, islice, permutations
 
-from .day5 import Interpreter, Op
+from .day5 import Interpreter
+from .intcode import load_program_from_file, Op
 
 
 def find_thruster_signal(intcode, phase_settings):
@@ -54,14 +55,11 @@ async def find_thruster_signal_with_feedback(intcode, phase_settings):
 
 
 def solve(path):
-    with open(path) as f:
-        intcode = [int(byte) for byte in f.read().rstrip().split(",")]
-
+    intcode = load_program_from_file(path)
     a = max(
         find_thruster_signal(intcode, phase_settings)
         for phase_settings in permutations(range(5))
     )
-
     b = max(
         asyncio.run(find_thruster_signal_with_feedback(intcode, phase_settings))
         for phase_settings in permutations(range(5, 10))

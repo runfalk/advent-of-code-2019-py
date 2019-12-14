@@ -1,10 +1,11 @@
 from collections import Counter
 
 from .common import dict_coords_as_str
-from .plane import Coord
+from .day12 import cmp
 from .day8 import iter_chunks
 from .day9 import Interpreter
-from .day12 import cmp
+from .intcode import load_program_from_file
+from .plane import Coord
 
 
 def find_num_blocks(intcode):
@@ -104,8 +105,6 @@ class Bot:
 
 
 def solve(path):
-    with open(path) as f:
-        intcode = [int(byte) for byte in f.read().rstrip().split(",")]
-
+    intcode = load_program_from_file(path)
     bot = Bot(intcode)
     return (find_num_blocks(intcode), bot.run())

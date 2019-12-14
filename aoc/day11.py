@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from .common import coords_as_str
+from .intcode import load_program_from_file
 from .plane import Coord
 from .day8 import iter_chunks
 from .day9 import Interpreter
@@ -63,9 +64,7 @@ def start_on_white(intcode):
 
 
 def solve(path):
-    with open(path) as f:
-        intcode = [int(byte) for byte in f.read().rstrip().split(",")]
-
+    intcode = load_program_from_file(path)
     return (
         len(start_on_black(intcode)),
         coords_as_str(

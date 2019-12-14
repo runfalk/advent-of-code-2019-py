@@ -1,3 +1,6 @@
+from .common import lines_from_file
+
+
 def get_fuel_req(mass):
     out = mass // 3 - 2
     if out < 0:
@@ -14,9 +17,7 @@ def get_fuel_load_req(mass):
 
 
 def solve(path):
-    with open(path) as f:
-        modules_masses = [int(line.rstrip()) for line in f]
-
+    modules_masses = list(map(int, lines_from_file(path)))
     return (
         sum(get_fuel_req(m) for m in modules_masses),
         sum(get_fuel_load_req(m) for m in modules_masses),

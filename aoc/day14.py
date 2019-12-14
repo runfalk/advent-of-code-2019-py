@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from .common import lines_from_file
+
 # Number of available ores for part B
 ORE_LIMIT = 1_000_000_000_000
 
@@ -91,9 +93,7 @@ def find_max_fuel(reactions, num_ores):
 
 
 def solve(path):
-    with open(path) as f:
-        reactions = dict(parse_reaction(line.rstrip()) for line in f)
-
+    reactions = dict(map(parse_reaction, lines_from_file(path)))
     return (
         find_required_ores(reactions),
         find_max_fuel(reactions, ORE_LIMIT),

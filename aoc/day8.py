@@ -1,6 +1,8 @@
 from collections import Counter
 from itertools import chain, islice
 
+from .common import lines_from_file
+
 
 def iter_chunks(size, it):
     it = iter(it)
@@ -48,9 +50,7 @@ def render(size, digits):
 
 
 def solve(path):
-    with open(path) as f:
-        digits = [int(d) for d in f.read().rstrip()]
-
+    digits = list(map(int, list(lines_from_file(path))[0]))
     size = (25, 6)
     return (
         checksum(size, digits),

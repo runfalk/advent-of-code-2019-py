@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from .common import last
 from .day2 import Interpreter as PrevInterpreter
-from .intcode import Op
+from .intcode import load_program_from_file, Op
 
 
 class Interpreter(PrevInterpreter):
@@ -40,9 +40,7 @@ class Interpreter(PrevInterpreter):
 
 
 def solve(path):
-    with open(path) as f:
-        intcode = [int(byte) for byte in f.read().rstrip().split(",")]
-
+    intcode = load_program_from_file(path)
     a = last(Interpreter.run_program(intcode, [1]))
     b = last(Interpreter.run_program(intcode, [5]))
 

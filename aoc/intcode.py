@@ -118,3 +118,8 @@ class InterpreterBase:
                 func(op)
             else:
                 yield op
+
+
+def load_program_from_file(path):
+    with open(path) as f:
+        return [int(byte) for byte in f.read().rstrip().split(",")]

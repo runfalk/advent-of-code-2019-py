@@ -2,6 +2,7 @@ from .common import lines_from_file
 
 
 def traverse_parents(orbits, planet):
+    """Yields all ancestors to the given planet in ascending distance"""
     while planet in orbits:
         planet = orbits[planet]
         yield planet
@@ -12,16 +13,14 @@ def num_orbits(orbits):
 
 
 def num_transfers(orbits, a, b):
-    # Build lookup tables for the transfer distance to each ancestor
+    # Build a lookup table for the transfer distance to each ancestor for A
     a_parents = {p: d for d, p in enumerate(traverse_parents(orbits, a))}
-    b_parents = {p: d for d, p in enumerate(traverse_parents(orbits, b))}
 
-    # Find the closest common ancestor
-    common_ancestors = set(a_parents).intersection(set(b_parents))
-    common_ancestor = min(common_ancestors, key=lambda x: a_parents[x] + b_parents[x])
-
-    # Return the number of transfers between A and B
-    return a_parents[common_ancestor] + b_parents[common_ancestor]
+    # Find the closest common ancestor by iterating over B's ancestors
+    for b_dist, b_parent in enumerate(traverse_parents(orbits, b)):
+        if b_parent in a_parents:
+            return a_parents[b_parent] + b_dist
+    raise ValueError(f"No common ancestor between {a} and {b}")
 
 
 def solve(path):

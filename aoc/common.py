@@ -31,25 +31,7 @@ def iter_peek(it, include_last=False):
 
 
 def coords_as_str(coords):
-    coords = set(coords)
-    min_x = min(x for x, _ in coords)
-    min_y = min(y for _, y in coords)
-
-    translation = Coord(min_x, min_y)
-    translated_coords = {Coord(*coord) - translation for coord in coords}
-
-    width = max(x + 1 for x, _ in translated_coords)
-    height = max(y + 1 for _, y in translated_coords)
-
-    colors = {
-        True: "#",
-        False: " ",
-    }
-
-    return "\n".join(
-        "".join(colors[Coord(x, y) in translated_coords] for x in range(width))
-        for y in range(height)
-    )
+    return dict_coords_as_str({c: True for c in coords}, {True: "#", None: " "})
 
 
 def dict_coords_as_str(coords, colors, default_value=None):

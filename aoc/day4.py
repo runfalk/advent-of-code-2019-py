@@ -1,6 +1,6 @@
 from itertools import groupby
 
-from .common import iter_peek
+from .common import iter_peek, lines_from_file
 
 
 def is_sorted(seq):
@@ -31,7 +31,10 @@ def is_pw(pw):
     return has_repetions(pw)
 
 
-def solve(start, end):
+def solve(path):
+    line, = lines_from_file(path)
+    start, end = map(int, line.split("-"))
+
     a = 0
     b = 0
 

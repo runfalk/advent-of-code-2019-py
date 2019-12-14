@@ -31,4 +31,4 @@ def test_is_pw():
 
 
 def test_solve():
-    assert solve(236491, 713787) == (1169, 757)
+    assert solve("data/day4.txt") == (1169, 757)

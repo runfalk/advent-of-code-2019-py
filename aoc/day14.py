@@ -1,130 +1,100 @@
-import bisect
-
 from collections import defaultdict
-from fractions import Fraction
 
 # Number of available ores for part B
 ORE_LIMIT = 1_000_000_000_000
 
 
-class Reaction:
-    def __init__(self, min_quantity, components):
-        self.min_quantity = min_quantity
-        if isinstance(components, dict):
-            components = components.items()
-        self.components = {name: quantity for name, quantity in components}
-        self.norm_components = {
-            name: Fraction(quantity, min_quantity)
-            for name, quantity in self.components.items()
-        }
+def parse_reaction(s):
+    def parse_pair(s):
+        x, y = s.split(" ")
+        return y, int(x)
 
-    @classmethod
-    def pair_from_str(cls, s):
-        def parse_pair(s):
-            x, y = s.split(" ")
-            return int(x), y
+    ingredients_str, output_str = s.split(" => ")
+    name, min_quantity = parse_pair(output_str)
+    return (
+        name,
+        (dict(map(parse_pair, ingredients_str.split(", "))), min_quantity),
+    )
 
-        sources_str, result_str = s.split(" => ")
-        result_quantity, result_name = parse_pair(result_str)
-        return (
-            result_name,
-            cls(
-                result_quantity,
-                [
-                    tuple(reversed(parse_pair(source)))
-                    for source in sources_str.split(", ")
-                ],
-            ),
+
+def divide_int_round_up(num, den):
+    # Assumes positive numerator and denumerator
+    return (num + den - 1) // den
+
+
+def func_bisect_left(func, target_output, lower_bound=0):
+    """
+    Return the smallest integer input parameter for the given function that
+    make the output value exceed the target value.
+
+    This function works just like bisect.bisect_left but for functions.
+    """
+
+    upper_bound = lower_bound + 1
+
+    # Establish an upper limit for the input value. We grow the value quickly
+    # to get O(log n) performance
+    while target_output > func(upper_bound):
+        mid = (upper_bound - lower_bound) * 2 + 1
+        lower_bound = upper_bound
+        upper_bound += mid
+
+    while lower_bound < upper_bound:
+        mid = (lower_bound + upper_bound) // 2
+        if func(mid) < target_output:
+            lower_bound = mid + 1
+        else:
+            upper_bound = mid
+
+    return lower_bound
+
+
+def find_required_ores(reactions, num_fuel=1):
+    stock = defaultdict(int)
+
+    # Restock if necessary, then consume the given number of ingredients
+    def restock_and_consume(ingredient, quantity):
+        # We consider ore as always being available
+        if ingredient == "ORE":
+            stock["ORE"] -= quantity
+            return
+
+        components, min_quantity = reactions[ingredient]
+        current_stock = stock[ingredient]
+
+        if current_stock < quantity:
+            # Find number of restocks to make
+            num_restocks = divide_int_round_up(quantity - current_stock, min_quantity)
+
+            # Only add the ingredients we don't immediately consume to stock
+            stock[ingredient] += num_restocks * min_quantity - quantity
+
+            # Ensure that all children's stock are taken into account
+            for cname, cquantity in components.items():
+                restock_and_consume(cname, num_restocks * cquantity)
+        else:
+            # We only need to consume since the resources we needed were in
+            # stock
+            stock[ingredient] -= quantity
+
+    restock_and_consume("FUEL", num_fuel)
+    return abs(stock["ORE"])
+
+
+def find_max_fuel(reactions, num_ores):
+    return (
+        func_bisect_left(
+            lambda num_fuel: find_required_ores(reactions, num_fuel), ORE_LIMIT,
         )
-
-    def __repr__(self):
-        return f"Reaction(min_quantity={self.min_quantity}, components={self.components!r})"
-
-
-# Hack to implement binary search of ore requirements
-class FuelFinder:
-    def __init__(self, reactions, num_ores):
-        self.reactions = reactions
-        self.norm_order = list(find_normalization_order(reactions))
-        self.num_ores = num_ores
-        self._len = 2 * self.num_ores // find_required_ores(self.reactions)
-
-    def __getitem__(self, fuel_quantity):
-        return find_required_ores(self.reactions, fuel_quantity, self.norm_order)
-
-    def __len__(self):
-        return self._len
-
-    def find(self):
-        i = bisect.bisect_left(self, self.num_ores, lo=1)
-        return i - 1
-
-
-def find_min_requirements(reactions, name, quantity):
-    reaction = reactions.get(name)
-    if reaction is None:
-        # This happens when name is ORE
-        return
-
-    for cname, cquantity in reaction.norm_components.items():
-        yield (cname, quantity * cquantity)
-        yield from find_min_requirements(reactions, cname, quantity * cquantity)
-
-
-def find_normalization_order(reactions):
-    component_to_reactions = defaultdict(set)
-    for name, reaction in reactions.items():
-        for cname in reaction.components:
-            component_to_reactions[cname].add(name)
-
-    remaining_components = set(reactions.keys())
-    while remaining_components:
-        for cname in list(remaining_components):
-            # Check if component is still in use
-            if component_to_reactions[cname]:
-                continue
-
-            for reactions in component_to_reactions.values():
-                reactions.discard(cname)
-            remaining_components.discard(cname)
-            yield cname
-
-
-def find_required_ores(reactions, fuel_quantity=1, norm_order=None):
-    if norm_order is None:
-        norm_order = list(find_normalization_order(reactions))
-
-    # Find number of resources required using normalized recipes. A normalized
-    # recipe is a recipe where the result is one unit
-    min_reqs = defaultdict(int)
-    for name, quantity in find_min_requirements(reactions, "FUEL", fuel_quantity):
-        min_reqs[name] += quantity
-
-    # Since we can't use normalized recipes for the result we must add resource
-    # requirements until all resources reach a multiple of their minimum
-    # quantity. If we consider recipes as a tree structure with FUEL at the root
-    # and ORE as the leaves we must do this in an order such that a node must
-    # never be updated by an ancestor after it's been processed
-    for name in norm_order:
-        quantity = min_reqs[name]
-        min_quantity = reactions[name].min_quantity
-        rem = quantity % min_quantity
-        if rem == 0:
-            continue
-
-        for n, q in find_min_requirements(reactions, name, min_quantity - rem):
-            min_reqs[n] += q
-        min_reqs[name] += rem
-
-    return int(min_reqs["ORE"])
+        - 1
+    )
 
 
 def solve(path):
     with open(path) as f:
-        lines = (line.rstrip() for line in f)
-        reactions = dict(map(Reaction.pair_from_str, lines))
+        reactions = dict(parse_reaction(line.rstrip()) for line in f)
 
     return (
         find_required_ores(reactions),
-        FuelFinder(reactions, 1_000_000_000_000).find(),
+        find_max_fuel(reactions, ORE_LIMIT),
     )

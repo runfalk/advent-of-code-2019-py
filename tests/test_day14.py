@@ -1,6 +1,15 @@
 import pytest
 
-from aoc.day14 import find_required_ores, FuelFinder, ORE_LIMIT, Reaction, solve
+from bisect import bisect_left
+
+from aoc.day14 import (
+    ORE_LIMIT,
+    find_max_fuel,
+    find_required_ores,
+    func_bisect_left,
+    parse_reaction,
+    solve,
+)
 
 
 examples = [
@@ -68,11 +77,26 @@ examples = [
 ]
 
 
+@pytest.mark.parametrize("value", [1, 2, 4, 9, 22, 55, 56])
+def test_func_bisect_left(value):
+    l = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+    assert func_bisect_left(lambda i: l[i], 5) == bisect_left(l, 5)
+
+
+def test_parse_reaction():
+    name, (ingredients, min_quantity) = parse_reaction(
+        "3 DCFZ, 7 NZVS, 5 HKGWZ, 10 PSHF => 8 KHKGT"
+    )
+    assert name == "KHKGT"
+    assert min_quantity == 8
+    assert ingredients == {"DCFZ": 3, "NZVS": 7, "HKGWZ": 5, "PSHF": 10}
+
+
 @pytest.mark.parametrize(
     "reaction_strs, num_ores", list(zip(examples, [31, 165, 13312, 180697, 2210736]))
 )
 def test_find_min_ores_per_fuel(reaction_strs, num_ores):
-    reactions = dict(map(Reaction.pair_from_str, reaction_strs))
+    reactions = dict(map(parse_reaction, reaction_strs))
     assert num_ores == find_required_ores(reactions)
 
 
@@ -80,8 +104,8 @@ def test_find_min_ores_per_fuel(reaction_strs, num_ores):
     "reaction_strs, num_fuel", list(zip(examples[2:], [82892753, 5586022, 460664]))
 )
 def test_find_max_fuel_within_ore_limit(reaction_strs, num_fuel):
-    reactions = dict(map(Reaction.pair_from_str, reaction_strs))
-    assert num_fuel == FuelFinder(reactions, ORE_LIMIT).find()
+    reactions = dict(map(parse_reaction, reaction_strs))
+    assert num_fuel == find_max_fuel(reactions, ORE_LIMIT)
 
 
 def test_solve():

@@ -168,7 +168,7 @@ async def explore_maze(intcode, debug=False):
 def solve(path):
     intcode = load_program_from_file(path)
     start = Coord(0, 0)
-    maze, oxygen_system = asyncio.run(explore_maze(intcode, debug=True))
+    maze, oxygen_system = asyncio.run(explore_maze(intcode))
     return (
         len(maze.shortest_path(start, oxygen_system)),
         len(maze.longest_shortest_path(oxygen_system)),

@@ -1,3 +1,5 @@
+import asyncio
+
 from enum import Enum, IntEnum
 from itertools import count
 
@@ -69,6 +71,26 @@ class InterpreterBase:
                 yield computer.read_input_param(op.modes[0])
             else:
                 raise ValueError(f"Unexpected OP-code {op!r}")
+
+    @classmethod
+    async def async_run_program(cls, program, input_queue, output_queue):
+        computer = cls(program)
+        for op in computer.step_until_halt():
+            if op.code == Op.INPUT:
+                target = computer.read_output_param(op.modes[0])
+                computer.program[target] = await input_queue.get()
+            elif op.code == Op.OUTPUT:
+                await output_queue.put(computer.read_input_param(op.modes[0]))
+            else:
+                raise ValueError(f"Unexpected OP-code {op!r}")
+
+    @staticmethod
+    async def shutdown_async_program(task):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     def read_opcode(self):
         return Opcode(self.read_input_param(Mode.IMMEDIATE))

@@ -27,6 +27,15 @@ class Coord:
     def distance_from_origin(self):
         return abs(self.x) + abs(self.y)
 
+    def iter_neighbors(self, blacklist=None):
+        if blacklist is None:
+            blacklist = set()
+
+        neighbors = [self.up(), self.right(), self.down(), self.left()]
+        for neighbor in neighbors:
+            if neighbor not in blacklist:
+                yield neighbor
+
     def up(self, steps=1):
         return replace(self, y=self.y - steps)
 

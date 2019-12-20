@@ -1,3 +1,6 @@
+import heapq
+
+from dataclasses import dataclass, field
 from itertools import count
 
 from .plane import Coord
@@ -53,3 +56,23 @@ def dict_coords_as_str(coords, colors, default_value=None):
         )
         for y in range(height)
     )
+
+
+class PriorityQueue:
+    @dataclass(order=True)
+    class _Item:
+        cost: int
+        item: any = field(compare=False)
+
+    def __init__(self, cost_func):
+        self.cost_func = cost_func
+        self.queue = []
+
+    def __len__(self):
+        return len(self.queue)
+
+    def put(self, item):
+        heapq.heappush(self.queue, self._Item(self.cost_func(item), item))
+
+    def get(self):
+        return heapq.heappop(self.queue).item

@@ -38,10 +38,11 @@ def solve(path):
 
     # We can reuse the logic from A
     b = a[:-1] + [
-        # Cancel the jump if we need to jump immediately again and would end up
-        # in a hole
+        # Reset the T register to false
         "NOT J T",
         "AND J T",
+        # Cancel the jump if we need to jump immediately again and would end up
+        # in a hole
         "OR E T",
         "OR H T",
         "AND T J",

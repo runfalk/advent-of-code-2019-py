@@ -23,6 +23,7 @@ from . import (
     day20,
     day21,
     day23,
+    day24,
 )
 
 
@@ -49,6 +50,7 @@ days = {
     20: day20.solve,
     21: day21.solve,
     23: day23.solve,
+    24: day24.solve,
 }
 
 

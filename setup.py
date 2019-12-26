@@ -18,7 +18,7 @@ setup(
     license="MIT",
     url="https://github.com/runfalk/advent-of-code-2019-py",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    install_requires=[],
+    install_requires=["click"],
     extras_require={"dev": ["black", "pytest",],},
     classifiers=[
         "Programming Language :: Python",
